@@ -179,6 +179,13 @@ Enable Artefact to appear on the map
 !#DC(ACM_CMD_CLASS_NECROMANT) = 28;
 !#DC(ACM_CMD_CLASS_ANCIENT) = 29;
 
+
+; Here you can set aura configs for commander classes
+!#DC(ACM_AURA_RADIUS_LEADER) = 3;
+!#DC(ACM_AURA_RADIUS_LEADER_MASTERY_BONUS) = 2;
+!#DC(ACM_AURA_RADIUS_AVENGER) = 3;
+!#DC(ACM_AURA_RADIUS_GENERAL) = 3;
+
 !#FU(NewIntArray):P(NUM_SECONDARY_SKILLS)/0/?i^acm_SecSkillsBackup^/(M_STORED);
 
 
@@ -17651,6 +17658,7 @@ if no the bonus is removed.
 !!BG:Q?y1 H?y3;
 !!SN&y1=0:W^ACM_Aura_of_Command_Attacker_Active^/?y2;
 !!SN&y1=1:W^ACM_Aura_of_Command_Defender_Active^/?y2;
+
 !!FU(Check_ACM_Aura_of_Command)&y2>=0:P0/y2/y1/y3; [Run function to give bonus, pass 0 to avoid animation on units and pass creature ID that emits aura, and battleside]
 
 !?FU(OnAfterBattleAction); 
@@ -17659,60 +17667,54 @@ if no the bonus is removed.
 !!SN&y1=1:W^ACM_Aura_of_Command_Defender_Active^/?y2;
 !!FU(Check_ACM_Aura_of_Command)&y2>=0:P0/y2/y1/y3; [Run function to give bonus, pass 0 to avoid animation on units and pass creature ID that emits aura, and battleside]
 
-!?FU(Check_ACM_Aura_of_Command); 
-!!BG:Q?f;                               [Quick Combat flag]
-!!FU&f=1:E;                             [Exit in quick combat]
-!!FU|x2<=0:E;                           [Exit if no valid Creature]
-!!FU(Check_Com_Masteries):Px4/?y40/?y42/0/?y41/0/0/0/0/0/0/0/?y43; [Pass Hero Number and return if Commander Mastery is enabled, and current kill count]
+!?FU(Check_ACM_Aura_of_Command);
+; Yuritsuki TODO: In ACM there are unnecessary 3 calls of this function on round 0. 1 time is enough, need to rewrite upper part
+!#VA(round:x) (mon:x) (side:x) (hero:x);
+!!BA:Q?(isQuick:y);                               [Quick Combat flag] 
+!!FU&(isQuick)=1:E;                             [Exit in quick combat]
+!!FU|(mon)<=0:E;                           [Exit if no valid Creature]
+!!FU(Check_Com_Masteries):P(hero)/?(mastery:y)/?(kills:y)/0/?(class:y)/0/0/0/0/0/0/0/?(modifier:y); [Pass Hero Number and return if Commander Mastery is enabled, and current kill count]
 
-!!VRy50:S-4;                            [Attack and Defense Bonus from Aura]
-!!VRy51:S-2;                            [Speed Bonus from Aura]
-!!VRy50:*y43:100;                       [Apply Modifier to Aura]
-!!VRy51:*y43:100;
+!!VR(atkDefBon:y):S-4;                            [Attack and Defense Bonus from Aura]
+!!VR(spdBon:y):S-2;                            [Speed Bonus from Aura]
+!!VR(atkDefBon):*(modifier):100;                       [Apply Modifier to Aura]
+!!VR(spdBon):*(modifier):100;
 
-!!re y1/0/41;                           [Reset the speed and flag every combat action]
-    !!SN:W^ACM_Aura_of_Command_Stack_%Y1^/?y2;
-    !!BMy1&y2=1:Ady50 Ddy50 Sdy51;      [Reduced parameter again]
-    !!SN&y2=1:W^ACM_Aura_of_Command_Stack_%Y1^/0;
+!!re i/(BATTLE_STACK_FIRST)/(BATTLE_STACK_LAST);                           [Reset the speed and flag every combat action]
+    !!SN:W^ACM_Aura_of_Command_Stack_%i^/?(isApplied:y);
+    !!BMi&(isApplied)=1:Ad(atkDefBon) Dd(atkDefBon) Sd(spdBon);      [Reduced parameter again]
+    !!SN&(isApplied)=1:W^ACM_Aura_of_Command_Stack_%i^/0;
 !!en;
 
-!!VRy50:*-1;                            [make value positive again]
-!!VRy51:*-1;                            [make value positive again]
+!!VR(atkDefBon):*-1;                            [make value positive again]
+!!VR(spdBon):*-1;                            [make value positive again]
 
-!!re y1/0/186;                          [Loop all battlefield positions]
-!!BU:Ey1/?y4;                           [Check if create stands on this hex]
-    !!if&y4>=0;                         [if a monster is at a given position]
-    !!BMy4:T?y10 P?y11 I?y12 B?y13 N?y14 H?y15 F?y16; [Get Creature Type and Position]
-        !!if&y13>=1/y14>=1/y15>=1/y10<>145/y10<>146/y10<>147/y10<>148/y10<>149/y10<>x2; [If any valid creature, execlude Warmachines]
-            !!re i/0/5;                 [loop around the creatures in cirlce 0-6 positions]
-            !!FU(ACM_Calc_neighbouring_hex_2):Py1/i/?y3; [Pass position and return first neighbouring hex field]
-            !!BU&y3>=0/y3<=186:Ey3/?y5; [Check if create stands on this hex]
-            !!BMy5&y5>=0/y5<=41:I?y6 T?y20 S?y7; [Get the creatures side and speed and type]
-            !!SN&y5>=0/y5<=41:W^ACM_Aura_of_Command_Stack_%Y4^/?y8; [Check creature bravery flag]
-               !!if&y5>=0/y5<=41/x3=y12/y7>=1/y20=x2/y8=0; [If creature is Commander, belongs to same hero and has speed >1 and does not have bonus]
-                    !!BMy4:Ady50 Ddy50 Sdy51; [increase speed by +3 Att and Def +5]
-                    !!BMy4&x1=1:V20;    [Show animation on the first round]
-                    !!SN:W^ACM_Aura_of_Command_Stack_%Y4^/1; [Set flag to true for creature to remember that bonus was given]
-                !!en;
+; Yuritsuki - new code
+!!VR(radius:y):S(ACM_AURA_RADIUS_LEADER);
 
-            *Start a second iteration to make the Aura 2hex wide if Master from Commander leader is enabled*
-            !!if&y40=1/y41=6;           [With Mastery make the Aura 2 hex wide]
-              !!re r/0/5;               [loop around the creatures in cirlce 0-6 positions]
-              !!FU(ACM_Calc_neighbouring_hex_2):Py3/r/?y30; [Pass position and return first neighbouring hex field]
-              !!BU&y30>=0/y30<=186:Ey30/?y5; [Check if create stands on this hex]
-              !!BMy5&y5>=0/y5<=41:I?y6 T?y20 S?y7; [Get the creatures side and speed and type]
-              !!SN&y5>=0/y5<=41:W^ACM_Aura_of_Command_Stack_%Y4^/?y8; [Check creature bravery flag]
-                 !!if&y5>=0/y5<=41/x3=y12/y7>=1/y20=x2/y8=0; [If creature is Commander, belongs to same hero and has speed >1 and does not have bonus]
-                      !!BMy4:Ady50 Ddy50 Sdy51; [increase speed by +3 Att and Def +5]
-                      !!BMy4&x1=1:V20;  [Show animation on the first round]
-                      !!SN:W^ACM_Aura_of_Command_Stack_%Y4^/1; [Set flag to true for creature to remember that bonus was given]
-                  !!en;                
-              !!en;
-            !!en;
-            !!en;
-        !!en;
+!!VR(radius)&(mastery)=1/(class)=6:+(ACM_AURA_RADIUS_LEADER_MASTERY_BONUS);
+
+!!VR(firstStack:y):S(side) *(BATTLE_STACKS_PER_SIDE);
+!!VR(lastStack:y):S(firstStack) +20;
+!!re (iStack:y)/(firstStack)/(lastStack);             [First loop to get commander of the side]
+  !!BM(iStack):N?(iNum:y) T?(iType:y);                [Get commander num and type]
+  !!if|(iNum)<1/(iType)<>(mon);                       [Skip if not alive or not commander]
+    !!co;
+  !!en;
+  !!FU(acm_GetStacksInRadius):P(iStack)/(side)/(radius)/?(affectedStacksList:y);  [Get neighbouring stacks]
+  !!SN:M(affectedStacksList)/?(size:y);
+  !!re j/0/(size)/1/-1;  [Loop through neighbours to apply the aura]
+    !!SN:M(affectedStacksList)/j/?(jStack:y);
+    !!SN:W^ACM_Aura_of_Command_Stack_%(iStack)^/?(auraApplied:y);
+    !!BM(jStack):S?(jSpd:y);
+    !!if&(auraApplied)=0/(jSpd)>=1; [If aura isn't applied and speed 0 (warmachines,arrow tower)]
+      !!BM(jStack):Ad(atkDefBon) Dd(atkDefBon) Sd(spdBon); [increase speed by +3 Att and Def +5]
+      *!BM(jStack)&(round)=1:V20;  [Show animation on the first round] [Yuritsuki: disabled - can be annoying with big radius]
+      !!SN:W^ACM_Aura_of_Command_Stack_%(jStack)^/1; [Set flag to true for creature to remember that bonus was given]
     !!en;
+  !!en;
 !!en;
+
 
 *!re y1/0/41;
     *!SN:W^ACM_Aura_of_Command_Stack_%Y1^/?y2;
@@ -35595,53 +35597,51 @@ Refills Marksman extra shots depending on kill count and mastery
 
 ***************************Avenger Commander********************************************************
 *Absorbs damage applied to surrounding units and transfers it to the commander
-!?MF1;
+!?FU(OnMonsterPhysicalDamage);
 
-!!UN:C42149568/4/?y10;                  [Get Physical Damage type]
-!!if|y10=4462398/y10=4455011/y10=4456676;[Only run when melee or shooting damage or strikes all enemies around damage type]
-  !!BG:A?y1;                            [Aktion in y1]
-  !!if&y1=6|y1=7;                       [Attack or Shoot]
-    !!BG:N?y1;                          [Attacking Stack]
-    !!MF:N?y4 F?y50;                    [damage receiving stack and damage applied]
-    !!if&y4>=0/y4<=41;                  [if any valid battlestack]
-      !!BMy4:I?y7 P?y20;                [Creature Type and Side index as for heroes (0:left, 1:right)]
-      !!BA:Hy7/?y99;                    [Current Hero]
-      !!FU&y99<0:E;                     [Exit if none]
-      !!re i/0/5;                       [loop target stack surrounding]
-        !!FU(ACM_Calc_neighbouring_hex_2):Py20/i/?y30; [Pass position and return first neighbouring hex field]
-        !!if&y30>=0/y30<=186;
-          !!BU:Ey30/?y8;                [If no alive monster is at that position, a value of -1 will be returned]
-          !!if&y8>=0/y8<=41;            [if a valid creature ]
-            !!BMy8:I?y11 T?y9;          [get side and creature flag]
-            !!if&y9>=174/y9<=191/y11=y7;[if any commander and same team]
-              !!FU(Check_Com_Masteries):Py99/0/?y15/0/?y10; [Pass Hero Number and return current com class]
-              !!FU&y10<>23:E;           [exit if the wrong class or mastery not enabled]
-              !!FU(Set_Com_Battle_Description):Py10/y99/y15/0/0/0/y11/0/?y60; [get value of damage increase from fct]
-              !!VRy60:*-1+100;          [calc rest percentage]
-              !!VRy60&y60<10:S10;       [damage reduction cannot be below 90%]
-              !!VRy50:*y60:100;         [reduce the incoming damage by a certain percentage]
-              !!BMy8:H?y12 L?y13;       [Get current HP of commander]
-              !!VRy15:Sy12-y13;         [calc available rest life]
-              !!SN:W^Avenger_Com_Mastery_Flag^/?y40; [check mastery flag]
-              !!if&y50>y15/y40=1;       [If damage is bigger than rest life and mastery active]
-                !!SN:T^AC_Misc.ACM_Com_Avenger_Revive^/?z1; !!SN:Iz1/?z1; [get text] 
-                !!BU&i^battle_isVisible^:Mz1;
-                !!SN:W^Avenger_Com_Mastery_Flag^/0; [set flag to zero after first commander would drop below zero life]
-                !!VRy50:Sy15-1;         [set damage to just nearly kill commander]
-              !!en;
-              !!BMy8:Ky50;              [Apply damage to commander stack]
-              !!MF:F1;                  [apply 1 damage to attacked unit. for some reason the battle log says always 1 damage]
-              !!SN:T^AC_Misc.ACM_Com_Avenger_Absorb^/?z1; !!SN:Iz1/?z1; [get text]
-              !!BU&i^battle_isVisible^:Mz1; [print message in battle log how much damage was saved by commander]
-              !!FU(ACM_DrawActionPlay):P;
-              !!FU(ACM_ExecutePhoenixResurrection):P;
-            !!en;
+!!UN:C42149568/4/?(dmgType:y);                  [Get Physical Damage type]
+!!if|(dmgType)=4462398/(dmgType)=4455011/(dmgType)=4456676;[Only run when melee or shooting damage or strikes all enemies around damage type]
+  !!BG:A?(action:y);                            
+  !!if&(action)=(BATTLE_ACTION_WALK_AND_ATTACK)|(action)=(BATTLE_ACTION_SHOOT);                       [Attack or Shoot]
+    !!MF:N?(defStack:y) F?(dmg:y);                    [damage receiving stack and damage applied]
+    !!if&(defStack)>=(BATTLE_STACK_FIRST)/(defStack)<=(BATTLE_STACK_LAST);                  [if any valid battlestack]
+      !!BM(defStack):I?(defSide:y) P?(defHex:y);                [Creature Type and Side index as for heroes (0:left, 1:right)]
+      !!BA:H(defSide)/?(hero:y);                    [Current Hero]
+      !!FU&(hero)<(HERO_FIRST):E;                     [Exit if none]
+
+      ; Yuritsuki - new code
+      !!FU(acm_GetStacksInRadius):P(defStack)/(defSide)/(ACM_AURA_RADIUS_AVENGER)/?(neiStacks:y); [get surrounding stacks]
+      !!SN:M(neiStacks)/?(size:y);
+      !!re i/0/?(size)/1/-1; [loop]
+        !!SN:M(neiStacks)/i/?(iStack:y);
+        !!BM(iStack):T?(iType:y) N?(iNum:y);  [Get possible commander type and number]
+        !!if&(iType)>=(MON_COMMANDER_FIRST_A)/(iType)<=(MON_COMMANDER_LAST_D); [If is commonder]
+          !!FU(Check_Com_Masteries):P(hero)/0/?(kills:y)/0/?(class:y); [Pass Hero Number and return current com class]
+          !!FU|(class)<>23/(iNum)<=0:E;           [exit if the wrong class or dead]
+          !!FU(Set_Com_Battle_Description):P(class)/(hero)/(kills)/0/0/0/(defSide)/0/?(skill:y); [get value of damage increase from fct]
+          !!VR(skill):*-1+100;          [calc rest percentage]
+          !!VR(skill)&(skill)<10:S10;       [damage reduction cannot be below 90%]
+          !!VR(dmg):*(skill):100;         [reduce the incoming damage by a certain percentage]
+          !!BM(iStack):H?(maxHP:y) L?(lostHP:y);       [Get current HP of commander]
+          !!VR(leftHP:y):S(maxHP)-(lostHP);         [calc available rest life]
+          !!SN:W^Avenger_Com_Mastery_Flag^/?(mastery:y); [check mastery flag]
+          !!if&(dmg)>(leftHP)/(mastery)=1;       [If damage is bigger than rest life and mastery active]
+            !!SN:T^AC_Misc.ACM_Com_Avenger_Revive^/?z1; !!SN:Iz1/?z1; [get text] 
+            !!BU&i^battle_isVisible^:Mz1;
+            !!SN:W^Avenger_Com_Mastery_Flag^/0; [set flag to zero after first commander would drop below zero life]
+            !!VR(dmg):S(leftHP)-1;         [set damage to just nearly kill commander]
           !!en;
-        !!en;  
+          !!BM(iStack):K(dmg);              [Apply damage to commander stack]
+          !!MF:F1;                  [apply 1 damage to attacked unit. for some reason the battle log says always 1 damage]
+          !!SN:T^AC_Misc.ACM_Com_Avenger_Absorb^/?z1; !!SN:Iz1/?z1; [get text]
+          !!BU&i^battle_isVisible^:Mz1; [print message in battle log how much damage was saved by commander]
+          !!FU(ACM_DrawActionPlay):P;
+          !!FU(ACM_ExecutePhoenixResurrection):P;
+        !!en;
       !!en;
     !!en;
   !!en;
-!!en;
+!!en; 
 
 
 ******************************Arch Mage and Warden Commander****************************************
@@ -36442,34 +36442,31 @@ x1=Hero ID
 
 !?FU(OnBattleActionEnd);
 
-!!BG:H?y99 N?y1 A?y3 D?y20; !!FU&y99<0:E;[Exit if no Hero]
-!!BMy1:T?y2 I?y11;                      [Get monster and side]
-!!if&y2>=174/y2<=191;                   [if any commander]
-!!if|y3=2/y3=3/y3=6;                    [if walk or walk and attack or defend]
-  !!FU(Check_Com_Masteries):Py99/0/?y15/0/?y10; [Pass Hero Number and return current com class and kill count]
-  !!FU(Set_Com_Battle_Description):Py10/y99/y15/0/0/0/y11/0/?y40; [get value of chance from fct Initial chance is 20% Each 10 Kill counts adds 1% chance]  
-  !!VRy50:S0R99;                        [generate random number]
-  !!FU|y10<>26/y50>y40:E;               [Exit if no General commander or roll was not successfull]
-  !!re i/0/5;                           [loop target stack surrounding]
-    !!FU(ACM_Calc_neighbouring_hex_2):Py20/i/?y30; [Pass position and return first neighbouring hex field]
-    !!if&y30>=0/y30<=186;    
-      !!BU:Ey30/?y8;                    [-2 if there is alive stack at that position]
-      !!if&y8>=0/y8<=41;                [if a valid creature and not the same ID]
-        !!BMy8:I?y40 F?j F?s F?r;       [get side and creature flag alive, done acting and defending ]
-        *!VRj:&16;                      [Check living flag]
-        *!VRs:&67108864; *!FU&s>0:E;    [Check This stack has done acting this round]
-        *!VRr:&134217728; *!FU&r>0:E;   [Check This stack is defending]
-        !!VRj:|134217728;               [Set defending bit]
-        !!VRr:|67108864;                [Set done acting bit]
-        !!VRz2:S^Fear.wav^;             [get sound file]
-        !!SN&y40<>y11/i^battle_isVisible^:Pz2; [Play Sound]
-        !!BMy8&y40<>y11:V15 Fj Fr R0;   [if creatures arent same side play animation set flag and set retaliation to zero]
-      !!en;
-    !!en;  
+!!BG:H?(hero:y) N?(currentStack:y) A?(action:y) D?(target:y); !!FU&(hero)<0:E;[Exit if no Hero]
+!!BM(currentStack):T?(currentStackType:y) I?(currentSide:y);                      [Get monster and side]
+!!if&(currentStackType)>=(MON_COMMANDER_FIRST_A)/(currentStackType)<=(MON_COMMANDER_LAST_D);                   [if any commander]
+!!if|(action)=(BATTLE_ACTION_WALK)/(action)=(BATTLE_ACTION_DEFEND)/(action)=(BATTLE_ACTION_WALK_AND_ATTACK);                    [if walk or walk and attack or defend]
+  !!FU(Check_Com_Masteries):P(hero)/0/?(kills:y)/0/?(class:y); [Pass Hero Number and return current com class and kill count]
+  !!FU(Set_Com_Battle_Description):P(class)/(hero)/(kills)/0/0/0/(currentSide)/0/?(skill:y); [get value of chance from fct Initial chance is 20% Each 10 Kill counts adds 1% chance]  
+  !!VR(chance:y):S0R99;                        [generate random number]
+  
+  !!FU|(class)<>26/(chance)>(skill):E;               [Exit if no General commander or roll was not successfull]
+
+  ; Yuritsuki - new code
+  !!VR(altSide:y):S1-(currentSide);       [opposite side will be affected]
+  !!FU(acm_GetStacksInRadius):P(currentStack)/(altSide)/(ACM_AURA_RADIUS_GENERAL)/?(affectedStacksList:y); [get enemies surrounding]
+  !!SN:M(affectedStacksList)/?(size:y);    [get arr size]
+  !!re i/0/(size)/1/-1;                    [loop]
+    !!SN:M(affectedStacksList)/i/?(neiStack:y); [get enemy stack ID]
+    !!VRr:|67108864 |134217728;                [Set defending & done acting bit]
+    !!if&i^battle_isVisible^;
+      !!VRz2:S^Fear.wav^;             [get sound file]
+      !!SN:Pz2; [Play Sound]
+      !!BM(neiStack):V15;
+    !!en;
+    !!BM(neiStack):Fr R0;   [if creatures arent same side play animation set flag and set retaliation to zero]
   !!en;
 !!en;
-!!en;
-
 
 *General Commander Mastery
 Killing the enemy commander grants a stat boost for the whole army for the rest of the combat
@@ -37442,6 +37439,26 @@ x1=ballista ID, x2=hero, x3=stack, x4=returns value
 !!en;
 
 !!FU(SaveIni):P(filePath);
+
+****************************************************************************************************
+; Get battle stacks array in defined radius
+; Also can be used in reverse meaning, 
+; Returns the result array and its size
+!?FU(acm_GetStacksInRadius);
+!#VA(targetStack:x) (searchSide:x) (radius:x) (result:x);
+
+!!FU(NewIntArray):P?(result); [Create the array]
+
+!!VR(firstStack:y):S(searchSide) *(BATTLE_STACKS_PER_SIDE); 
+!!VR(lastStack:y):S(firstStack) +20;
+!!re i/(firstStack)/(lastStack);
+  !!BMi:T?(type:y) N?(num:y);
+  !!if&(type)>(NO_MON)/(num)>0/(targetStack)<>i;
+    !!FU(GetDistanceBetweenStacks):P(targetStack)/i/?(distance:y);
+    !!FU(Array_Push)&(distance)<=(radius):P(result)/i; [Push if inside the radius, is valid creature and num>0]
+  !!en;
+!!en;
+!!SN:F^ExtendArrayLifetime^/(result);
 
 ********************************************************************************
 

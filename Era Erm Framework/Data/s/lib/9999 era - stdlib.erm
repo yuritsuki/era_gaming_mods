@@ -2711,6 +2711,68 @@ ZVSE2
 !!VRi^battle_acting_stack^:S(NO_STACK);
 !!VRi^battle_acting_side^:S(BATTLE_LEFT);
 !!FU(UpdateBattleVars):P;
+
+
+; Get distance between two stacks on the battlefield
+; x1 (src) - first stack
+; x2 (dst) - second stack
+; x3 (result) - distance
+; Author: daemon_n 
+!?FU(GetDistanceBetweenStacks);
+!#VA(src:x) (dst:x) (result:x);
+!!BM(src):Z?(attacker:x);
+!!BM(dst):Z?(defender:x);
+
+!!SN:E4481984/(CALLCONV_THISCALL)/(defender);
+!!VR(gexDef:y):Sv1;
+
+!!SN:E4481984/(CALLCONV_THISCALL)/(attacker);
+!!VR(gexAtt:y):Sv1;
+
+!!FU(GetDistanceBetweenHexes):P(gexAtt)/(gexDef)/?(result);
+
+; Get distance between two hexes on the battlefield
+; x1 (src) - first hex
+; x2 (dst) - second hex
+; x3 (result) - distance
+; Author: daemon_n 
+!?FU(GetDistanceBetweenHexes);
+!#VA(src:x) (dst:x) (result:x);
+!!VR(y1:y):S(src) :17;
+!!VR(y2:y):S(dst) :17;
+
+!!VR(y2Half:y):S(y2) :2;
+!!VR(y1Half:y):S(y1) :2;
+
+!!VR(x1:y):S(src) %17 +(y1Half);
+!!VR(x2:y):S(dst) %17 +(y2Half);
+
+!!VR(xDst:y):S(x2) -(x1);
+!!VR(yDst:y):S(y2) -(y1);
+
+!!if&(xDst:y)>=0/(yDst:y)>=0;
+  !!if&(xDst:y)>(yDst:y);
+    !!VR(result):S(xDst);
+  !!el;
+    !!VR(result):S(yDst);
+  !!en;
+
+!!el&(xDst:y)<0/(yDst:y)<0;
+  !!if&(xDst:y)<(yDst:y);
+    !!VR(result):S(xDst);
+  !!el;
+    !!VR(result):S(yDst);
+  !!en;
+    !!VR(result):*-1;
+!!el;
+  !!if&(xDst:y)<0;
+    !!VR(xDst:y):*-1;
+  !!en;
+  !!if&(yDst:y)<0;
+    !!VR(yDst:y):*-1;
+  !!en;
+  !!VR(result):S(xDst) +(yDst);
+!!en;
 ; ============= END BATTLE =============
 
 
