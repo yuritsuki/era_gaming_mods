@@ -17680,7 +17680,9 @@ if no the bonus is removed.
 !!VR(atkDefBon):*(modifier):100;                       [Apply Modifier to Aura]
 !!VR(spdBon):*(modifier):100;
 
-!!re i/(BATTLE_STACK_FIRST)/(BATTLE_STACK_LAST);                           [Reset the speed and flag every combat action]
+!!VR(firstStack:y):S(side) *(BATTLE_STACKS_PER_SIDE);
+!!VR(lastStack:y):S(firstStack) +20;
+!!re i/(firstStack)/(lastStack);                           [Reset the speed and flag every combat action]
     !!SN:W^ACM_Aura_of_Command_Stack_%i^/?(isApplied:y);
     !!BMi&(isApplied)=1:Ad(atkDefBon) Dd(atkDefBon) Sd(spdBon);      [Reduced parameter again]
     !!SN&(isApplied)=1:W^ACM_Aura_of_Command_Stack_%i^/0;
@@ -17694,8 +17696,6 @@ if no the bonus is removed.
 
 !!VR(radius)&(mastery)=1/(class)=6:+(ACM_AURA_RADIUS_LEADER_MASTERY_BONUS);
 
-!!VR(firstStack:y):S(side) *(BATTLE_STACKS_PER_SIDE);
-!!VR(lastStack:y):S(firstStack) +20;
 !!re (iStack:y)/(firstStack)/(lastStack);             [First loop to get commander of the side]
   !!BM(iStack):N?(iNum:y) T?(iType:y);                [Get commander num and type]
   !!if|(iNum)<1/(iType)<>(mon);                       [Skip if not alive or not commander]
@@ -17705,7 +17705,7 @@ if no the bonus is removed.
   !!SN:M(affectedStacksList)/?(size:y);
   !!re j/0/(size)/1/-1;  [Loop through neighbours to apply the aura]
     !!SN:M(affectedStacksList)/j/?(jStack:y);
-    !!SN:W^ACM_Aura_of_Command_Stack_%(iStack)^/?(auraApplied:y);
+    !!SN:W^ACM_Aura_of_Command_Stack_%(jStack)^/?(auraApplied:y);
     !!BM(jStack):S?(jSpd:y);
     !!if&(auraApplied)=0/(jSpd)>=1; [If aura isn't applied and speed 0 (warmachines,arrow tower)]
       !!BM(jStack):Ad(atkDefBon) Dd(atkDefBon) Sd(spdBon); [increase speed by +3 Att and Def +5]
@@ -37609,4 +37609,5 @@ Result is %Y43^;
 *!SSy2:E2/?y22;
 *!SSy2:E3/?y23;
 *!SSy2:P?y24;
+
 *!IF:L^Spell Effect is %Y20 %Y21 %Y22 %Y23 Power %Y24^;
