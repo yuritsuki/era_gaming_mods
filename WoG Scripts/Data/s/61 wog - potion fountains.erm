@@ -110,7 +110,7 @@ z275: Hint code for Valhalla's Fountain (visited)
 
 **** U S E    P O T I O N S   I N   B A T T L E ***
 *** At the beginning of battle ***
-!?FU(OnBeforeBattle)&-998;
+!?FU(OnSetupBattlefield)&-998;
 !!UN:P17/?y-1; [Check if script is enabled: y-1]
 !!FU&y-1=0:E; [Exit if script isn't enabled]
 
